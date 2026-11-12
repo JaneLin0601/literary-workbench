@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文学人物与剧情解析工作台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (window.tailwind) {
+      tailwind.config = { theme: { extend: { colors: { paper: '#fffdf7' } } } };
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body class="min-h-screen text-stone-800">
+
+  <header class="sticky top-0 z-20 border-b border-stone-200 bg-paper/90 backdrop-blur">
+    <div class="mx-auto max-w-6xl px-4">
+      <div class="flex h-14 items-center gap-3">
+        <div class="seal">文</div>
+        <h1 class="text-lg font-semibold tracking-tight text-stone-900">文学人物与剧情解析工作台</h1>
+        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">v0.7 LifeHack</span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1">
+        <nav role="tablist" aria-label="主导航" class="flex flex-1 gap-1">
+          <button type="button" role="tab" class="tab" id="tab-story" data-tab="story" aria-controls="panel-story" aria-selected="true">📖 剧情深度解析</button>
+          <button type="button" role="tab" class="tab" id="tab-arc" data-tab="arc" aria-controls="panel-arc" aria-selected="false" tabindex="-1">📈 情感与人物弧光</button>
+          <button type="button" role="tab" class="tab" id="tab-cast" data-tab="cast" aria-controls="panel-cast" aria-selected="false" tabindex="-1">🕸️ 人物关系与档案</button>
+        </nav>
+        <div class="ml-2 flex items-center gap-2">
+          <button type="button" id="model-status" class="status-pill is-off" aria-label="模型状态，点击打开 API 设置">
+            <span class="status-dot"></span>
+            <span id="model-status-text">本地模拟</span>
+          </button>
+          <button type="button" id="settings-btn" class="icon-btn" aria-label="API 设置" title="API 设置">⚙️</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6">
+
+    <!-- 📖 剧情深度解析 -->
+    <section id="panel-story" class="panel" data-panel="story" role="tabpanel" aria-labelledby="tab-story">
+      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+
+        <div class="card p-4">
+          <h2 class="card-title">小说解析入口</h2>
+          <p class="card-hint">上传整本小说做全书宏观分析，或粘贴片段做四层心理结构精读。</p>
+
+          <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="上传整本小说 txt 文件">
+            <span class="dropzone-icon">📁</span>
+            <span>上传整本小说 (.txt)，获取全书宏观分析</span>
+            <small>支持 2MB 以内文件</small>
+          </div>
+          <input type="file" id="novel-file" accept=".txt,text/plain" hidden>
+          <p id="novel-info" class="novel-info" hidden></p>
+
+          <div id="novel-tools" class="novel-tools" hidden>
+            <div class="novel-tools-row">
+              <button type="button" id="macro-btn" class="btn-primary">生成全书宏观速览</button>
+              <button type="button" id="chapters-btn" class="btn-ghost">提取章节并深度解析</button>
+            </div>
+            <div id="chapter-picker" class="chapter-picker" hidden>
+              <div class="chapter-picker-row">
+                <label class="chapter-picker-label" for="chapter-select">选择章节</label>
+                <select id="chapter-select" class="chapter-select"></select>
+                <button type="button" id="chapter-analyze-btn" class="btn-primary">分析此章</button>
+              </div>
+              <p id="chapter-hint" class="chapter-hint"></p>
+            </div>
+          </div>
+
+          <div class="segment-divider">或粘贴片段，做四层心理解析</div>
+
+          <textarea id="story-input" rows="8" spellcheck="false"
+                    placeholder="示例：她盯着那封被雨打湿的旧信，忽然笑了：“这几年的情爱与时光，究竟是错付了。”"
+                    class="textarea mt-3"></textarea>
+
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button type="button" id="analyze-motive" class="btn-primary">分析人物动机</button>
+            <button type="button" id="analyze-subtext" class="btn-primary">解读潜台词</button>
+            <button type="button" id="story-clear" class="btn-ghost">清空</button>
+            <span id="story-count" class="counter">0 字</span>
+          </div>
+
+          <div class="mt-4 border-t border-stone-200 pt-3">
+            <h3 class="text-xs font-semibold text-stone-900">语料库</h3>
+            <p id="corpus-status" class="mt-1 text-xs text-stone-500">正在载入 mock-data.md…</p>
+            <div class="chip-row mt-2" id="corpus-topics"></div>
+          </div>
+        </div>
+
+        <div class="card flex min-h-[26rem] flex-col p-4">
+          <div class="flex items-center justify-between">
+            <h2 class="card-title">分析结果</h2>
+            <span id="result-count" class="counter">0 条</span>
+          </div>
+          <div id="result-log" class="result-log mt-3">
+            <p class="empty-hint">还没有分析记录。左侧贴入片段，或点下方语料示例一键载入。</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 📈 情感与人物弧光 -->
+    <section id="panel-arc" class="panel" data-panel="arc" role="tabpanel" aria-labelledby="tab-arc" hidden>
+      <div class="card p-4">
+        <div class="flex flex-wrap items-baseline gap-2">
+          <h2 class="card-title">情感弧光曲线</h2>
+          <p class="card-hint" id="arc-hint">Y 轴情感指数区间 −100（绝望）至 100（狂喜），数据来自语料库预设。</p>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" id="arc-gen-btn" class="btn-primary">📊 基于当前小说生成分析</button>
+          <span id="arc-novel-name" class="counter"></span>
+        </div>
+
+        <p id="arc-progress" class="reading-progress" hidden></p>
+
+        <div class="chart-wrap">
+          <div id="arc-chart" class="chart-box"></div>
+          <p id="arc-empty" class="chart-empty">图表正在载入预设情感数据…</p>
+        </div>
+
+        <div id="arc-stages" class="stage-row mt-3"></div>
+
+        <p id="arc-essay" class="arc-essay" hidden></p>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" id="show-code" class="btn-ghost">查看代码</button>
+          <span id="arc-note" class="counter"></span>
+        </div>
+
+        <div id="code-panel" class="side-panel" hidden>
+          <div class="side-panel-head">
+            <h3 class="text-xs font-semibold text-stone-900">情感指数的计算逻辑（Python 模拟）</h3>
+            <button type="button" id="copy-code" class="link-btn">复制</button>
+          </div>
+          <pre id="code-block" class="code-block"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 🕸️ 人物关系与档案 -->
+    <section id="panel-cast" class="panel" data-panel="cast" role="tabpanel" aria-labelledby="tab-cast" hidden>
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <button type="button" id="cast-gen-btn" class="btn-primary">📊 基于当前小说生成分析</button>
+        <span id="cast-novel-name" class="counter"></span>
+      </div>
+
+      <p id="cast-progress" class="reading-progress" hidden></p>
+
+      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+
+        <div class="card p-4">
+          <h2 class="card-title">人物档案</h2>
+          <div class="chip-row mt-2" id="cast-picker"></div>
+          <div id="profile-card" class="profile mt-3"></div>
+        </div>
+
+        <div class="card p-4">
+          <h2 class="card-title">人物关系</h2>
+          <p class="card-hint" id="cast-hint">箭头方向表示主动的一方；高亮与当前档案人物相关的关系。</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="rel-table">
+              <thead>
+                <tr><th>主动方</th><th>关系</th><th>指向</th></tr>
+              </thead>
+              <tbody id="relation-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" id="settings-form" novalidate>
+      <div class="settings-head">
+        <h3 id="settings-title">API 设置</h3>
+        <button type="button" id="settings-close" class="icon-btn" aria-label="关闭">✕</button>
+      </div>
+      <div class="settings-body">
+        <label class="settings-label" for="api-key-input">硅基流动 API Key</label>
+        <input id="api-key-input" type="password" class="textarea mt-2" placeholder="sk-..." autocomplete="off" spellcheck="false">
+        <p class="card-hint mt-2">Key 仅保存在本机浏览器的 localStorage 中，请求从你的浏览器直连硅基流动，不经过任何中转服务器。可在 cloud.siliconflow.cn 的「API 密钥」页面获取。</p>
+        <div class="settings-actions">
+          <button type="submit" class="btn-primary" id="settings-save">保存</button>
+          <button type="button" class="btn-ghost" id="settings-clear">清除 Key</button>
+          <button type="button" class="btn-ghost" id="settings-cancel">取消</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./js/app.js"></script>
+  <script src="./js/analysis.js"></script>
+  <script src="./js/arc.js"></script>
+  <script src="./js/cast.js"></script>
+</body>
+</html>

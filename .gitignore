@@ -1,0 +1,9 @@
+# 个人文件与本地资料，不进入仓库
+『晋江 百合 佳人醉』春最不醒.txt
+*.pdf
+samples/
+archive/
+preview/
+
+# 发布用的构建输出
+dist/
